@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 
@@ -61,6 +62,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	ks, err := fetchAllJWKs(config.Origins)
 	if err != nil {
 		jsonErr(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		log.Println("unable to fetch jwks from origins: " + err.Error())
 		return
 	}
 
@@ -68,7 +70,7 @@ func handle(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ks)
+	json.NewEncoder(w).Encode(jose.JsonWebKeySet{ks})
 }
 
 func jsonErr(w http.ResponseWriter, err string, status int) {
@@ -147,20 +149,30 @@ func fetchAllJWKs(origins []string) ([]jose.JsonWebKey, error) {
 	var keys []jose.JsonWebKey
 
 	var g errgroup.Group
+	mutex := &sync.Mutex{}
 	for _, url := range origins {
+		log.Println("fetching from: " + url)
+
+		url := url // https://golang.org/doc/faq#closures_and_goroutines
 		g.Go(func() error {
 			ks, err := fetchJWKs(url)
 			if err != nil {
 				return err
 			}
 
-			ks = append(keys, ks...)
+			mutex.Lock()
+			keys = append(keys, ks...)
+			mutex.Unlock()
 
 			return nil
 		})
 	}
 
-	return keys, g.Wait()
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return keys, nil
 }
 
 func fetchJWKs(origin string) ([]jose.JsonWebKey, error) {

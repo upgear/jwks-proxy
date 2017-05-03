@@ -9,4 +9,8 @@ mkdir public
 
 # Generate a public key
 openssl rsa -pubout -in abc.private.pem -out public/abc.public.pem
+
+# Proxy combination of Auth0 keys and those in public/
+export JWKS_ORIGINS=https://yourdomain.auth0.com/.well-known/jwks.json
+go run main.go
 ```
