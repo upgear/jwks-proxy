@@ -34,15 +34,20 @@ func init() {
 	var err error
 	internalKeys, err = readPEMFiles(config.KeyDir)
 	if err != nil {
-		panic("unable to read pem files: " + err.Error())
+		log.Fatal("unable to read pem files: " + err.Error())
 	}
 }
 
 func configure() {
 	// Grabs values from environment
 	config.KeyDir = os.Getenv("JWKS_KEY_DIR")
-	config.Origins = strings.Split(os.Getenv("JWKS_ORIGINS"), ",")
 	config.Port = os.Getenv("JWKS_PORT")
+
+	for _, url := range strings.Split(os.Getenv("JWKS_ORIGINS"), ",") {
+		if s := strings.TrimSpace(url); s != "" {
+			config.Origins = append(config.Origins, s)
+		}
+	}
 
 	// Defaults
 	if config.Port == "" {
@@ -113,7 +118,6 @@ func readPEMFiles(dir string) ([]jose.JsonWebKey, error) {
 }
 
 func pemToKey(key []byte, kid string) (jose.JsonWebKey, error) {
-	var err error
 	var k jose.JsonWebKey
 
 	// Parse PEM block
@@ -123,15 +127,20 @@ func pemToKey(key []byte, kid string) (jose.JsonWebKey, error) {
 	}
 
 	// Parse the key
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return k, err
+	var parsedKey interface{}
+	if cert, err := x509.ParseCertificate(block.Bytes); err == nil {
+		k.Certificates = []*x509.Certificate{cert}
+		parsedKey = cert.PublicKey
+	} else {
+		if parsedKey, err = x509.ParsePKIXPublicKey(block.Bytes); err != nil {
+			return k, errors.New("unable to parse key: " + err.Error())
+		}
 	}
 
 	// Assert that the key is the right type
 	var pkey *rsa.PublicKey
 	var ok bool
-	if pkey, ok = cert.PublicKey.(*rsa.PublicKey); !ok {
+	if pkey, ok = parsedKey.(*rsa.PublicKey); !ok {
 		return k, errors.New("not RSA public key")
 	}
 
@@ -140,20 +149,20 @@ func pemToKey(key []byte, kid string) (jose.JsonWebKey, error) {
 	k.KeyID = kid
 	k.Algorithm = string(jose.RS256)
 	k.Use = "sig"
-	k.Certificates = []*x509.Certificate{cert}
 
 	return k, nil
 }
 
 func fetchAllJWKs(origins []string) ([]jose.JsonWebKey, error) {
-	var keys []jose.JsonWebKey
+	// Make 0 length slice here to force empty json marshalling to be []
+	// rather than null
+	keys := make([]jose.JsonWebKey, 0)
 
 	var g errgroup.Group
 	mutex := &sync.Mutex{}
 	for _, url := range origins {
-		log.Println("fetching from: " + url)
-
 		url := url // https://golang.org/doc/faq#closures_and_goroutines
+
 		g.Go(func() error {
 			ks, err := fetchJWKs(url)
 			if err != nil {
@@ -168,6 +177,7 @@ func fetchAllJWKs(origins []string) ([]jose.JsonWebKey, error) {
 		})
 	}
 
+	// Wait for all go routines to complete, or for one to return an error
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
