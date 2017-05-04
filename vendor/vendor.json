@@ -19,6 +19,18 @@
 			"path": "github.com/square/go-jose/json",
 			"revision": "50df5ca198e569d06795909c091ac0cea62e925a",
 			"revisionTime": "2016-11-22T17:27:18Z"
+		},
+		{
+			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",
+			"path": "golang.org/x/net/context",
+			"revision": "feeb485667d1fdabe727840fe00adc22431bc86e",
+			"revisionTime": "2017-05-02T17:39:58Z"
+		},
+		{
+			"checksumSHA1": "S0DP7Pn7sZUmXc55IzZnNvERu6s=",
+			"path": "golang.org/x/sync/errgroup",
+			"revision": "de49d9dcd27d4f764488181bea099dfe6179bcf0",
+			"revisionTime": "2017-04-18T20:42:32Z"
 		}
 	],
 	"rootPath": "github.com/upgear/jwks-proxy"

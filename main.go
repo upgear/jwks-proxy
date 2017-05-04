@@ -66,8 +66,8 @@ func main() {
 func handle(w http.ResponseWriter, r *http.Request) {
 	ks, err := fetchAllJWKs(config.Origins)
 	if err != nil {
-		jsonErr(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		log.Println("unable to fetch jwks from origins: " + err.Error())
+		jsonErr(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
 

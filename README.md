@@ -3,6 +3,8 @@
 This proxy is used to combine JSON Web Key sets into a single endpoint. It
 enables you to combine the JWKs from multiple origins and locally from files.
 
+Currently only RSA keys are supported.
+
 ## Quickstart
 
 ```sh
